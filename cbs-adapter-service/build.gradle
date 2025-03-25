@@ -1,47 +1,122 @@
-plugins {
-	id 'java'
-	id 'org.springframework.boot' version '3.4.4'
-	id 'io.spring.dependency-management' version '1.1.7'
-	id 'com.github.bjornvester.wsdl2java' version '1.6'
-}
+// plugins {
+// 	id 'java'
+// 	id 'org.springframework.boot' version '3.4.4'
+// 	id 'io.spring.dependency-management' version '1.1.7'
+// 	id 'com.github.bjornvester.wsdl2java' version '1.6'
+// }
 
-wsdl2java {
-    wsdlDir = file("$projectDir/src/main/resources/wsdl")
-    generatedSourcesDir = file("$buildDir/generated-sources/jaxws")
-    wsdlFiles = [
-        file("$projectDir/src/main/resources/wsdl/customerWsdl.wsdl")
-    ]
-    packageName = "com.credable.cbs_adapter_service.client"
+// wsdl2java {
+//     wsdlDir = file("$projectDir/src/main/resources/wsdl")
+//     generatedSourcesDir = file("$buildDir/generated-sources/jaxws")
+//     wsdlFiles = [
+//         file("$projectDir/src/main/resources/wsdl/customerWsdl.wsdl")
+//     ]
+//     packageName = "com.credable.cbs_adapter_service.client"
+// }
+
+// group = 'com.credable'
+// version = '0.0.1-SNAPSHOT'
+
+// java {
+// 	toolchain {
+// 		languageVersion = JavaLanguageVersion.of(21)
+// 	}
+// }
+
+// repositories {
+// 	mavenCentral()
+// }
+
+// dependencies {
+// 	implementation 'org.springframework.boot:spring-boot-starter-web'
+// 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+// 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+// }
+
+// tasks.named('test') {
+// 	useJUnitPlatform()
+// }
+
+// wsdl2java {
+//     wsdlDir = file("$projectDir/src/main/resources/wsdl")
+//     generatedSourcesDir = file("$buildDir/generated-sources/jaxws")
+//     wsdlFiles = [
+//         file("$projectDir/src/main/resources/wsdl/customerWsdl.wsdl")
+//     ]
+//     packageName = "com.credable.cbs_adapter_service.client"
+// }
+
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.4.4'
+    id 'io.spring.dependency-management' version '1.1.0'
 }
 
 group = 'com.credable'
 version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '21'
 
-java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(21)
-	}
+configurations {
+    jaxb
 }
 
 repositories {
-	mavenCentral()
+    mavenCentral()
 }
 
 dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter-web'
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    // Spring Boot
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-web-services'
+    
+    // SOAP
+    implementation 'wsdl4j:wsdl4j'
+    implementation 'jakarta.xml.bind:jakarta.xml.bind-api:4.0.0'
+    implementation 'org.glassfish.jaxb:jaxb-runtime:4.0.2'
+    implementation 'org.springframework.ws:spring-ws-security:4.0.10'
+    jaxb 'org.glassfish.jaxb:jaxb-xjc:4.0.2'
+    
+    // Lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    
+    // Testing
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+task genJaxb {
+    ext.sourcesDir = "${buildDir}/generated-sources/jaxb"
+    ext.classesDir = "${buildDir}/classes/jaxb"
+    ext.schema = "src/main/resources/wsdl/customerWsdl.wsdl"
+
+    outputs.dir classesDir
+
+    doLast() {
+        project.ant {
+            taskdef name: "xjc", classname: "com.sun.tools.xjc.XJCTask",
+                classpath: configurations.jaxb.asPath
+            mkdir(dir: sourcesDir)
+            mkdir(dir: classesDir)
+
+            xjc(destdir: sourcesDir, schema: schema,
+                package: "com.credable.cbs_adapter_service.wsdl") {
+                arg(value: "-wsdl")
+                produces(dir: sourcesDir, includes: "**/*.java")
+            }
+        }
+    }
+}
+
+compileJava.dependsOn genJaxb
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ["src/main/java", "${buildDir}/generated-sources/jaxb"]
+        }
+    }
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
-}
-
-wsdl2java {
-    wsdlDir = file("$projectDir/src/main/resources/wsdl")
-    generatedSourcesDir = file("$buildDir/generated-sources/jaxws")
-    wsdlFiles = [
-        file("$projectDir/src/main/resources/wsdl/customerWsdl.wsdl")
-    ]
-    packageName = "com.credable.cbs_adapter_service.client"
+    useJUnitPlatform()
 }
